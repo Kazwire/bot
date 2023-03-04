@@ -336,6 +336,14 @@ class Admin(commands.Cog):
             f"Removed {user} from {service}.\nResponse:\n```{response}```",
             ephemeral=True,
         )
+    @remove_manager.autocomplete(name="service")
+    async def remove_manager_service_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> typing.List[app_commands.Choice[str]]:
+        data = []
+        for service in await config.get_services():
+            data.append(app_commands.Choice(name=service, value=service))
+        return data
 
     @admin.command(
         name="get_info",
