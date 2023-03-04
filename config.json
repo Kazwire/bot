@@ -1,0 +1,13 @@
+{
+  "password": "default-password",
+  "main_service": "Kazwire (KW)",
+  "services": [
+    {
+      "name": "Kazwire (KW)",
+      "url": "https://kazwire.com",
+      "managers": [123, 124],
+      "description": "Unblock all the fun with Kazwire!",
+      "cooldown": 3600
+    }
+  ]
+}
