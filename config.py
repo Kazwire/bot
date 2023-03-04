@@ -333,8 +333,7 @@ async def remove_manager(service: str, user_id: int):
     for service in config["services"]:
         if service["name"] == service:
             service["managers"].remove(user_id)
-        else:
-            return "CONFIG: Invalid permissions."
+
     with open("config.json", "w") as f:
         json.dump(config, f, indent=4)
 
