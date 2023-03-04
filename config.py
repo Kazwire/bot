@@ -388,21 +388,6 @@ async def remove_service(name: str):
     return "CONFIG: Removed service."
 
 
-async def set_warning_message(service: str, message: str):
-    """Set the warning message for a service."""
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    for provider in config["services"]:
-        if provider["name"] == service:
-            # It's likely that the message will contain quotes, so we need to escape them
-            provider["warning_message"] = message.replace('"', '\\"')
-
-    with open("config.json", "w") as f:
-        json.dump(config, f, indent=4)
-
-    return "CONFIG: Set warning message."
-
-
 async def get_main_service():
     """Get the main service."""
     with open("config.json", "r") as f:
