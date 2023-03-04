@@ -40,7 +40,7 @@ class Admin(commands.Cog):
                 len(
                     f"Added domain(s) to {service}. Output: ```{', '.join(responses)}```"
                 )
-                > 4000
+                > 2000
             ):
                 return await interaction.response.send_message(
                     "The output is too long to send.", ephemeral=True
@@ -86,7 +86,7 @@ class Admin(commands.Cog):
                 len(
                     f"Removed domain(s) from {service}. Output: ```{', '.join(responses)}```",
                 )
-                > 4000
+                > 2000
             ):
                 return await interaction.response.send_message(
                     "The output is too long to send.", ephemeral=True
