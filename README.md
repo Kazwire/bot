@@ -3,6 +3,16 @@ Discord bot intended to distribute proxies in a single server.
 
 This is highly specialized for Kazwire, however this would provide admins of proxy sites/networks with a great head start with development.
 
+**Features:**
+1. Multiple service support (with advanced admin controls)
+2. Ability to add multiple domains and premium domains (provided that there is a space between each one)
+3. Password support along with a command for admins to change the password.
+4. Advanced cooldown support for each service (x number of times in y seconds)
+5. Ability to change/customize cooldowns for each service through a command
+6. Ability to change user's total uses (incase a domain doesn't work and you need to reimburse the user)
+7. Ability to list all premium domains or regular domains
+8. Total ran counter (it will increment a counter every time a user gets a domain)
+
 **Commands:**
 
 > `/proxy service: [service]`
