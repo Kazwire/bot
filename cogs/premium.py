@@ -30,21 +30,17 @@ class Premium(commands.Cog):
         """Get a proxy url, choose from the following services given."""
 
         # Check if the user is on cooldown.
-        cooldown = await config.get_cooldown(
-            str(interaction.user.id), str(service + "_premium")
-        )
-        service_cooldown = await config.get_services_cooldown(service)
-        if cooldown > 0:
-            # convert the cooldown to months, days, hours, minutes, seconds
-            cooldown_readable = str(datetime.timedelta(seconds=cooldown))
+        usable, response = await config.get_cooldown(str(interaction.user.id), service + "_premium")
+        service_cooldown = await config.get_service_cooldown(service)
+        if not usable:
             return await interaction.response.send_message(
-                f"You are on cooldown for {cooldown_readable}.", ephemeral=True
+                f"Error: {response}.", ephemeral=True
             )
 
-        # Check if there are any premium domains for the service.
+        # Check if there are any domains for the service.
         if len(await config.get_premium_domains(service)) == 0:
             return await interaction.response.send_message(
-                f"There are no premium domains for {service}.", ephemeral=True
+                f"There are no domains for {service}.", ephemeral=True
             )
 
         # Grab a random domain from the list of domains for the service.
@@ -52,11 +48,10 @@ class Premium(commands.Cog):
 
         # Send the message to the user saying the service it was from and the domain.
         await interaction.response.send_message(
-            f"Randomly choosen domain from {service}: `{domain}`", ephemeral=True
+            f"Randomly choosen premium domain from {service}: `{domain}`", ephemeral=True
         )
-        await config.set_cooldown(
-            str(interaction.user.id), service_cooldown, str(service + "_premium")
-        )
+        await config.set_cooldown(str(interaction.user.id), service_cooldown, service + "_premium")
+        await config.service_counter(service, 1)
 
     @get.autocomplete(name="service")
     async def get_service_autocomplete(

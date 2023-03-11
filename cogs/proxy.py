@@ -30,13 +30,11 @@ class Proxy(commands.Cog):
         """Get a proxy url, choose from the following services given."""
 
         # Check if the user is on cooldown.
-        cooldown = await config.get_cooldown(str(interaction.user.id), service)
-        service_cooldown = await config.get_services_cooldown(service)
-        if cooldown > 0:
-            # convert the cooldown to months, days, hours, minutes, seconds
-            cooldown_readable = str(datetime.timedelta(seconds=cooldown))
+        usable, response = await config.get_cooldown(str(interaction.user.id), service)
+        service_cooldown = await config.get_service_cooldown(service)
+        if not usable:
             return await interaction.response.send_message(
-                f"You are on cooldown for {cooldown_readable}.", ephemeral=True
+                f"Error: {response}.", ephemeral=True
             )
 
         # Check if there are any domains for the service.

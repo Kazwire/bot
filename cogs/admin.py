@@ -238,17 +238,18 @@ class Admin(commands.Cog):
         return data
 
     @admin.command(
-        name="cooldown_set",
+        name="set_cooldown",
         description="Set the cooldown for a service.",
     )
-    async def cooldown_set(
-        self, interaction: discord.Interaction, service: str, cooldown: int
+    async def set_cooldown(
+        self, interaction: discord.Interaction, service: str, max_uses: int, cooldown: int
     ) -> None:
         """Set the cooldown for a service."""
         if await config.get_permission_status(service, interaction.user.id):
-            response = await config.set_services_cooldown(service, cooldown)
+            response1 = await config.set_service_max_uses(service, max_uses)
+            response2 = await config.set_service_cooldown(service, cooldown)
             await interaction.response.send_message(
-                f"Set the cooldown for {service} to {cooldown} seconds.\n\nOutput: ```{response}```",
+                f"Set cooldown for {service}. Output: ```{response1}, {response2}```",
                 ephemeral=True,
             )
         else:
@@ -256,8 +257,36 @@ class Admin(commands.Cog):
                 "You do not have permission to use this command.", ephemeral=True
             )
 
-    @cooldown_set.autocomplete(name="service")
-    async def cooldown_set_service_autocomplete(
+    @set_cooldown.autocomplete(name="service")
+    async def set_cooldown_service_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> typing.List[app_commands.Choice[str]]:
+        data = []
+        for service in await config.get_services():
+            data.append(app_commands.Choice(name=service, value=service))
+        return data
+    
+    @admin.command(
+        name="set_user_cooldown",
+        description="Set the cooldown for a service.",
+    )
+    async def set_user_cooldown(
+        self, interaction: discord.Interaction, user: discord.User, service: str, count: int
+    ) -> None:
+        """Set the cooldown for a service."""
+        if await config.get_permission_status(service, interaction.user.id):
+            response = await config.set_user_num_uses(user.id, service, count)
+            await interaction.response.send_message(
+                f"Set cooldown for {service}. Output: ```{response}```",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "You do not have permission to use this command.", ephemeral=True
+            )
+
+    @set_user_cooldown.autocomplete(name="service")
+    async def set_user_cooldown_service_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> typing.List[app_commands.Choice[str]]:
         data = []
@@ -336,6 +365,7 @@ class Admin(commands.Cog):
             f"Removed {user} from {service}.\nResponse:\n```{response}```",
             ephemeral=True,
         )
+
     @remove_manager.autocomplete(name="service")
     async def remove_manager_service_autocomplete(
         self, interaction: discord.Interaction, current: str

@@ -27,6 +27,54 @@ async def get_service_counter(service: str):
     return f"CONFIG: Invalid service."
 
 
+async def get_service_cooldown(service: str):
+    """Get the service cooldown."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    for provider in config["services"]:
+        if provider["name"] == service:
+            return provider["cooldown"]
+    return f"CONFIG: Invalid service."
+
+
+async def get_service_max_uses(service: str):
+    """Get the service max uses."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    for provider in config["services"]:
+        if provider["name"] == service:
+            return provider["max_uses"]
+    return f"CONFIG: Invalid service."
+
+
+async def set_service_cooldown(service: str, cooldown: int):
+    """Set the service cooldown."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    for provider in config["services"]:
+        if provider["name"] == service:
+            provider["cooldown"] = cooldown
+            # Write the updated config data back to the file
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=4)
+            return f"CONFIG: Set cooldown for {service} to {cooldown}."
+    return f"CONFIG: Invalid service."
+
+
+async def set_service_max_uses(service: str, max_uses: int):
+    """Set the service max uses."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    for provider in config["services"]:
+        if provider["name"] == service:
+            provider["max_uses"] = max_uses
+            # Write the updated config data back to the file
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=4)
+            return f"CONFIG: Set max uses for {service} to {max_uses}."
+    return f"CONFIG: Invalid service."
+
+
 async def set_cooldown(user_id, cooldown_duration, service):
     # Load the existing cooldown data from the file
     with open("cooldown.json", "r") as f:
@@ -35,32 +83,21 @@ async def set_cooldown(user_id, cooldown_duration, service):
     # Check if the user already has a cooldown for this service
     if user_id in cooldown_data and service in cooldown_data[user_id]:
         # Update the existing cooldown for this service
-        cooldown_data[user_id][service] = {
-            "duration": cooldown_duration,
-            "expiry": str(
-                datetime.datetime.utcnow()
-                + datetime.timedelta(seconds=cooldown_duration)
-            ),
-        }
+        cooldown_data[user_id][service]["num_uses"] += 1
+        cooldown_data[user_id][service]["expiry"] = str(
+            datetime.datetime.utcnow() + datetime.timedelta(seconds=cooldown_duration)
+        )
     else:
         # Create a new cooldown for this service
         if user_id not in cooldown_data:
             cooldown_data[user_id] = {}
-            cooldown_data[user_id][service] = {
-                "duration": cooldown_duration,
-                "expiry": str(
-                    datetime.datetime.utcnow()
-                    + datetime.timedelta(seconds=cooldown_duration)
-                ),
-            }
-        else:
-            cooldown_data[user_id][service] = {
-                "duration": cooldown_duration,
-                "expiry": str(
-                    datetime.datetime.utcnow()
-                    + datetime.timedelta(seconds=cooldown_duration)
-                ),
-            }
+        cooldown_data[user_id][service] = {
+            "duration": cooldown_duration,
+            "expiry": str(
+                datetime.datetime.utcnow() + datetime.timedelta(seconds=cooldown_duration)
+            ),
+            "num_uses": 1
+        }
 
     # Write the updated cooldown data back to the file
     with open("cooldown.json", "w") as f:
@@ -74,43 +111,61 @@ async def get_cooldown(user_id, service):
     with open("cooldown.json", "r") as f:
         cooldown_data = json.load(f)
 
+    max_uses = await get_service_max_uses(re.sub("_premium", "", service))
+
     # Check if the user has a cooldown for this service
+    # Check if the user has reached the max uses for this service
+    # Check if the cooldown has expired and remove it if it has
+    # Return the time remaining on the cooldown
     if user_id in cooldown_data and service in cooldown_data[user_id]:
-        # Calculate the time left on the cooldown
-        expiry_time = datetime.datetime.fromisoformat(
-            cooldown_data[user_id][service]["expiry"]
+        expiry = datetime.datetime.strptime(
+            cooldown_data[user_id][service]["expiry"], "%Y-%m-%d %H:%M:%S.%f"
         )
-        time_left = (expiry_time - datetime.datetime.utcnow()).total_seconds()
-        if time_left < 0:
-            time_left = 0
-        return time_left
+        if cooldown_data[user_id][service]["num_uses"] >= max_uses and expiry > datetime.datetime.utcnow():
+            return [False, f"CONFIG: Max uses reached. Cooldown expires in {expiry - datetime.datetime.utcnow()}"]
+        if expiry < datetime.datetime.utcnow():
+            del cooldown_data[user_id][service]
+            with open("cooldown.json", "w") as f:
+                json.dump(cooldown_data, f, indent=4)
+            # If the cooldown has expired then the user can use the service
+            return [True, 0]
+        elif cooldown_data[user_id][service]["num_uses"] < max_uses:
+            # If the user hasn't used the max uses for this service then return True
+            return [True, 0]
+        else:
+            # If the cooldown hasn't expired then return the time remaining in readable format
+            time_remaining = expiry - datetime.datetime.utcnow()
+            return [False, time_remaining]
     else:
-        return 0
+        # If the user doesn't have a cooldown then they can use the service
+        return [True, 0]
+    
+async def set_user_num_uses(user_id, service, num_uses):
+    # Load the existing cooldown data from the file
+    with open("cooldown.json", "r") as f:
+        cooldown_data = json.load(f)
 
+    # Check if the user already has a cooldown for this service
+    if user_id in cooldown_data and service in cooldown_data[user_id]:
+        # Update the existing cooldown for this service
+        cooldown_data[user_id][service]["num_uses"] = num_uses
+    else:
+        # Create a new cooldown for this service
+        if user_id not in cooldown_data:
+            cooldown_data[user_id] = {}
+        cooldown_data[user_id][service] = {
+            "duration": 0,
+            "expiry": str(
+                datetime.datetime.utcnow()
+            ),
+            "num_uses": num_uses
+        }
 
-async def set_services_cooldown(service, cooldown_duration):
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    for provider in config["services"]:
-        if provider["name"] == service:
-            provider["cooldown"] = cooldown_duration
+    # Write the updated cooldown data back to the file
+    with open("cooldown.json", "w") as f:
+        json.dump(cooldown_data, f, indent=4)
 
-            # Write the updated config data back to the file
-            with open("config.json", "w") as f:
-                json.dump(config, f, indent=4)
-
-            return f"CONFIG: Cooldown set for {service} to {cooldown_duration} seconds."
-
-    return f"CONFIG: Invalid service."
-
-
-async def get_services_cooldown(service: str):
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    for provider in config["services"]:
-        if provider["name"] == service:
-            return provider["cooldown"]
-    return "CONFIG: Invalid service."
+    return f"CONFIG: Set num uses for {user_id} for {service} to {num_uses}."
 
 
 async def get_service_info(service: str):
@@ -150,8 +205,7 @@ async def get_premium_domains(service: str):
     for provider in domains["services"]:
         if provider["name"] == service:
             return provider["premium_domains"]
-        else:
-            return "CONFIG: Invalid service."
+    return "CONFIG: Invalid service."
 
 
 async def get_all_premium_domains():
@@ -352,6 +406,7 @@ async def add_service(name: str, url: str, description: str):
             "managers": [],
             "counter": 0,
             "cooldown": 3600,
+            "max_uses": 1,
         }
     )
     with open("config.json", "w") as f:
