@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 # Load our .env file
 load_dotenv()
 
-
 class Proxy(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -27,7 +26,13 @@ class Proxy(commands.Cog):
         description="Get a proxy url, choose from the following services given.",
     )
     async def proxy(self, interaction: discord.Interaction, service: str) -> None:
+        
         """Get a proxy url, choose from the following services given."""
+
+        async def log(log_message: str):
+            """Log a message to a specific channel."""
+            channel = self.bot.get_channel(int(os.getenv("LOG_CHANNEL")))
+            await channel.send(log_message)
 
         # Check if the user is on cooldown.
         usable, response = await config.get_cooldown(str(interaction.user.id), service)
@@ -39,6 +44,7 @@ class Proxy(commands.Cog):
 
         # Check if there are any domains for the service.
         if len(await config.get_domains(service)) == 0:
+            await log(f"User: {interaction.user.id}\nThere are no domains for {service}.")
             return await interaction.response.send_message(
                 f"There are no domains for {service}.", ephemeral=True
             )
@@ -52,6 +58,9 @@ class Proxy(commands.Cog):
         )
         await config.set_cooldown(str(interaction.user.id), service_cooldown, service)
         await config.service_counter(service, 1)
+        await log(
+            f"User: {interaction.user.id}\nUsed the {service} proxy command. Domain: {domain}."
+        )
 
     @proxy.autocomplete(name="service")
     async def proxy_service_autocomplete(

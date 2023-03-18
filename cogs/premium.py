@@ -29,16 +29,23 @@ class Premium(commands.Cog):
     async def get(self, interaction: discord.Interaction, service: str) -> None:
         """Get a proxy url, choose from the following services given."""
 
+        async def log(log_message: str):
+            """Log a message to a specific channel."""
+            channel = self.bot.get_channel(int(os.getenv("LOG_CHANNEL")))
+            await channel.send(log_message)
+
         # Check if the user is on cooldown.
         usable, response = await config.get_cooldown(str(interaction.user.id), service + "_premium")
         service_cooldown = await config.get_service_cooldown(service)
         if not usable:
+            await log(f"User: {interaction.user.id}\nError: {response}.")
             return await interaction.response.send_message(
                 f"Error: {response}.", ephemeral=True
             )
 
         # Check if there are any domains for the service.
         if len(await config.get_premium_domains(service)) == 0:
+            await log(f"User: {interaction.user.id}\nThere are no domains for {service}.")
             return await interaction.response.send_message(
                 f"There are no domains for {service}.", ephemeral=True
             )
@@ -52,6 +59,7 @@ class Premium(commands.Cog):
         )
         await config.set_cooldown(str(interaction.user.id), service_cooldown, service + "_premium")
         await config.service_counter(service, 1)
+        await log(f"User: {interaction.user.id}\nGot a premium proxy from {service}. Domain: {domain}")
 
     @get.autocomplete(name="service")
     async def get_service_autocomplete(
@@ -65,10 +73,17 @@ class Premium(commands.Cog):
     @premium.command(name="get_pass", description="Get the password for a service.")
     async def get_pass(self, interaction: discord.Interaction) -> None:
         """Get the password for a service."""
+
+        async def log(log_message: str):
+            """Log a message to a specific channel."""
+            channel = self.bot.get_channel(int(os.getenv("LOG_CHANNEL")))
+            await channel.send(log_message)
+
         await interaction.response.send_message(
             f"Username: `discord`\nPassword: `{await config.get_password()}`",
             ephemeral=True,
         )
+        await log(f"User: {interaction.user.id} got the password.")
 
 
 async def setup(bot: commands.Bot) -> None:
