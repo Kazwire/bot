@@ -275,7 +275,7 @@ class Admin(commands.Cog):
     ) -> None:
         """Set the cooldown for a service."""
         if await config.get_permission_status(service, interaction.user.id):
-            response = await config.set_user_num_uses(user.id, service, count)
+            response = await config.set_user_num_uses(service, user.id, count)
             await interaction.response.send_message(
                 f"Set cooldown for {service}. Output: ```{response}```",
                 ephemeral=True,
@@ -314,6 +314,37 @@ class Admin(commands.Cog):
             f"Added {service} to the proxy.\nResponse:\n```{response}```",
             ephemeral=True,
         )
+    
+    @admin.command(
+        name="remove_service",
+        description="Remove a service. (Only accessible if you have access to manage the main service)",
+    )
+    async def remove_service(
+        self, interaction: discord.Interaction, service: str
+    ):
+        main_service = await config.get_main_service()
+        """Remove a service from the proxy."""
+        if not await config.get_permission_status(main_service, interaction.user.id):
+            await interaction.response.send_message(
+                "You don't have permission to do that!", ephemeral=True
+            )
+            return
+
+        response = await config.remove_service(service)
+        await interaction.response.send_message(
+            f"Removed {service} from the proxy.\nResponse:\n```{response}```",
+            ephemeral=True,
+        )
+    
+    @remove_service.autocomplete(name="service")
+    async def remove_service_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> typing.List[app_commands.Choice[str]]:
+        data = []
+        for service in await config.get_services():
+            data.append(app_commands.Choice(name=service, value=service))
+        return data
+
 
     @admin.command(
         name="add_manager",
@@ -419,6 +450,52 @@ class Admin(commands.Cog):
                 "You don't have permission to do that!", ephemeral=True
             )
 
+    @admin.command(
+        name="get_user_history",
+        description="Get the history of a user for a service.",
+    )
+    async def get_user_history(
+        self, interaction: discord.Interaction, service: str, user: discord.User
+    ):
+        """Get the history of a user for a service."""
+        if await config.get_permission_status(service, interaction.user.id):
+            data = await config.get_history(service, str(user.id))
+            await interaction.response.send_message(
+                f"History for {user} on {service}:\n\n```{data}```",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "You don't have permission to do that!", ephemeral=True
+            )
+    
+    @get_user_history.autocomplete(name="service")
+    async def get_user_history_service_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> typing.List[app_commands.Choice[str]]:
+        data = []
+        for service in await config.get_services():
+            data.append(app_commands.Choice(name=service, value=service))
+        return data
+    
+    @admin.command(
+        name="clear_user_history",
+        description="Clear the history of a user for a service.",
+    )
+    async def clear_user_history(
+        self, interaction: discord.Interaction, service: str, user: discord.User
+    ):
+        """Clear the history of a user for a service."""
+        if await config.get_permission_status(service, interaction.user.id):
+            data = await config.pop_history(service, str(user.id))
+            await interaction.response.send_message(
+                f"History for {user} on {service} has been cleared.\n\nOutput: ```{data}```",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "You don't have permission to do that!", ephemeral=True
+            )
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Admin(bot), guild=bot.get_guild(int(os.getenv("GUILD_ID"))))

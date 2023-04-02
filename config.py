@@ -3,6 +3,50 @@ import re
 import datetime
 
 
+# HISTORY LOGGING
+async def log_history(service, user_id, domain):
+    with open("history.json", "r") as f:
+        history_data = json.load(f)
+    if user_id not in history_data:
+        history_data[user_id] = {}
+    if service not in history_data[user_id]:
+        history_data[user_id][service] = []
+    history_data[user_id][service].append(domain)
+    with open("history.json", "w") as f:
+        json.dump(history_data, f, indent=4)
+    return f"CONFIG: Logged {domain} to {service} history for {user_id}."
+
+# GET HISTORY
+async def get_history(service, user_id):
+    with open("history.json", "r") as f:
+        history_data = json.load(f)
+    if user_id in history_data and service in history_data[user_id]:
+        return history_data[user_id][service]
+    return []
+
+# POP USER HISTORY FOR SERVICE
+async def pop_history(service, user_id):
+    with open("history.json", "r") as f:
+        history_data = json.load(f)
+    if user_id in history_data and service in history_data[user_id]:
+        history_data[user_id][service].pop()
+        with open("history.json", "w") as f:
+            json.dump(history_data, f, indent=4)
+        return f"CONFIG: Popped history for {user_id} for {service}."
+    return f"CONFIG: No history found for {user_id} for {service}."
+
+# POP USER HISTORY
+async def pop_user_history(user_id):
+    with open("history.json", "r") as f:
+        history_data = json.load(f)
+    if user_id in history_data:
+        history_data.pop(user_id)
+        with open("history.json", "w") as f:
+            json.dump(history_data, f, indent=4)
+        return f"CONFIG: Popped history for {user_id}."
+    return f"CONFIG: No history found for {user_id}."
+
+# SERVICE COUNTER
 async def service_counter(service: str, amount: int):
     """Add to the service counter."""
     with open("config.json", "r") as f:
@@ -27,16 +71,7 @@ async def get_service_counter(service: str):
     return f"CONFIG: Invalid service."
 
 
-async def get_service_cooldown(service: str):
-    """Get the service cooldown."""
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    for provider in config["services"]:
-        if provider["name"] == service:
-            return provider["cooldown"]
-    return f"CONFIG: Invalid service."
-
-
+# GET SERVICE MAX USES
 async def get_service_max_uses(service: str):
     """Get the service max uses."""
     with open("config.json", "r") as f:
@@ -46,21 +81,7 @@ async def get_service_max_uses(service: str):
             return provider["max_uses"]
     return f"CONFIG: Invalid service."
 
-
-async def set_service_cooldown(service: str, cooldown: int):
-    """Set the service cooldown."""
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    for provider in config["services"]:
-        if provider["name"] == service:
-            provider["cooldown"] = cooldown
-            # Write the updated config data back to the file
-            with open("config.json", "w") as f:
-                json.dump(config, f, indent=4)
-            return f"CONFIG: Set cooldown for {service} to {cooldown}."
-    return f"CONFIG: Invalid service."
-
-
+# SET SERVICE MAX USES
 async def set_service_max_uses(service: str, max_uses: int):
     """Set the service max uses."""
     with open("config.json", "r") as f:
@@ -75,6 +96,31 @@ async def set_service_max_uses(service: str, max_uses: int):
     return f"CONFIG: Invalid service."
 
 
+# GET SERVICE COOLDOWN
+async def get_service_cooldown(service: str):
+    """Get the service cooldown."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    for provider in config["services"]:
+        if provider["name"] == service:
+            return provider["cooldown"]
+    return f"CONFIG: Invalid service."
+
+# SET SERVICE COOLDOWN
+async def set_service_cooldown(service: str, cooldown: int):
+    """Set the service cooldown."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    for provider in config["services"]:
+        if provider["name"] == service:
+            provider["cooldown"] = cooldown
+            # Write the updated config data back to the file
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=4)
+            return f"CONFIG: Set cooldown for {service} to {cooldown}."
+    return f"CONFIG: Invalid service."
+
+# SET USER COOLDOWN
 async def set_cooldown(user_id, cooldown_duration, service):
     # Load the existing cooldown data from the file
     with open("cooldown.json", "r") as f:
@@ -105,8 +151,8 @@ async def set_cooldown(user_id, cooldown_duration, service):
 
     return f"CONFIG: Cooldown set for {user_id} for {cooldown_duration} for {service}."
 
-
-async def get_cooldown(user_id, service):
+# GET USER COOLDOWN
+async def get_cooldown(service, user_id):
     # Load the existing cooldown data from the file
     with open("cooldown.json", "r") as f:
         cooldown_data = json.load(f)
@@ -122,6 +168,7 @@ async def get_cooldown(user_id, service):
             cooldown_data[user_id][service]["expiry"], "%Y-%m-%d %H:%M:%S.%f"
         )
         if cooldown_data[user_id][service]["num_uses"] >= max_uses and expiry > datetime.datetime.utcnow():
+            # Make this in a readable format (Cooldown expires in 1 day, 2 hours, 3 minutes, 4 seconds)
             return [False, f"CONFIG: Max uses reached. Cooldown expires in {expiry - datetime.datetime.utcnow()}"]
         if expiry < datetime.datetime.utcnow():
             del cooldown_data[user_id][service]
@@ -139,8 +186,9 @@ async def get_cooldown(user_id, service):
     else:
         # If the user doesn't have a cooldown then they can use the service
         return [True, 0]
-    
-async def set_user_num_uses(user_id, service, num_uses):
+
+# SET USER NUM USES
+async def set_user_num_uses(service, user_id, num_uses):
     # Load the existing cooldown data from the file
     with open("cooldown.json", "r") as f:
         cooldown_data = json.load(f)
@@ -435,12 +483,40 @@ async def remove_service(name: str):
     for service in config["services"]:
         if service["name"] == name:
             config["services"].remove(service)
-        else:
-            return "CONFIG: Invalid service."
+    
+    # Remove all domains for the service
+    with open("domains.json", "r") as f:
+        domains = json.load(f)
+    for service in domains["services"]:
+        if service["name"] == name:
+            domains["services"].remove(service)
+    
+    with open("domains.json", "w") as f:
+        json.dump(domains, f, indent=4)
+
+    # Remove all history for the service for all users
+    with open("history.json", "r") as f:
+        history = json.load(f)
+    for user in history:
+        for service in user:
+            if service == name:
+                user.remove(service)
+
+    with open("history.json", "w") as f:
+        json.dump(history, f, indent=4)
+
+    # Remove all cooldown for the service for all users
+    with open("cooldown.json", "r") as f:
+        cooldowns = json.load(f)
+    for user in cooldowns:
+        for service in user:
+            if service == name:
+                user.remove(service)
+
     with open("config.json", "w") as f:
         json.dump(config, f, indent=4)
 
-    return "CONFIG: Removed service."
+    return f"CONFIG: Removed {name}."
 
 
 async def get_main_service():
