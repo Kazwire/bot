@@ -49,7 +49,8 @@ class Proxy(commands.Cog):
             )
 
         # Check if there are any domains for the service.
-        if len(await config.get_domains(service)) == 0:
+        domains = await config.get_domains(service)
+        if len(domains) == 0:
             await log(
                 f"User: {interaction.user.id}\nThere are no domains for {service}."
             )
@@ -58,14 +59,14 @@ class Proxy(commands.Cog):
             )
 
         # Grab a random domain from the list of domains for the service.
-        domain = random.choice(await config.get_domains(service))
+        domain = random.choice(domains)
 
         # Check if the domain has been accessed before by grabbing the users history
         # and checking if the domain is in it. If it is, we'll grab a new domain.
         # However if the user has grabbed all the domains for the service, we'll
         # send an error message.
         while domain in await config.get_history(service, str(interaction.user.id)):
-            if len(await config.get_domains(service)) == len(
+            if len(domains) == len(
                 await config.get_history(service, str(interaction.user.id))
             ):
                 await interaction.response.send_message(
@@ -75,7 +76,7 @@ class Proxy(commands.Cog):
                 return await log(
                     f"User: {interaction.user.id}\nThere are no more domains for {service}."
                 )
-            domain = random.choice(await config.get_domains(service))
+            domain = random.choice(domains)
 
         # Send the message to the user saying the service it was from and the domain.
         await interaction.response.send_message(
@@ -103,6 +104,11 @@ class Proxy(commands.Cog):
     )
     async def proxy_history(self, interaction: discord.Interaction, service: str) -> None:
         """Get your history of domains you've used."""
+
+        if service not in await config.get_services():
+            return await interaction.response.send_message(
+                f"Error: {service} is not a valid service.", ephemeral=True
+            )
 
         history = await config.get_history(service, str(interaction.user.id))
         if len(history) == 0:

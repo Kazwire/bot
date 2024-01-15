@@ -5,26 +5,34 @@ import datetime
 
 # HISTORY LOGGING
 async def log_history(service, user_id, domain):
-    with open("history.json", "r") as f:
-        history_data = json.load(f)
-    if user_id not in history_data:
-        history_data[user_id] = {}
-    if service not in history_data[user_id]:
-        history_data[user_id][service] = []
-    history_data[user_id][service].append(domain)
-    with open("history.json", "w") as f:
-        json.dump(history_data, f, indent=4)
-    return f"CONFIG: Logged {domain} to {service} history for {user_id}."
+    try:
+        with open("history.json", "r") as f:
+            history_data = json.load(f)
+        if user_id not in history_data:
+            history_data[user_id] = {}
+        if service not in history_data[user_id]:
+            history_data[user_id][service] = []
+        history_data[user_id][service].append(domain)
+        with open("history.json", "w") as f:
+            json.dump(history_data, f, indent=4)
+        return f"CONFIG: Logged {domain} to {service} history for {user_id}."
+    except Exception as e:
+        print("Error logging history:", e)
+        return f"CONFIG: Error logging history for {user_id} for {service}."
 
 # GET HISTORY
 async def get_history(service, user_id):
-    with open("history.json", "r") as f:
-        history_data = json.load(f)
-    if user_id in history_data and service in history_data[user_id]:
-        return history_data[user_id][service]
+    try:
+        with open("history.json", "r") as f:
+            history_data = json.load(f)
+        if user_id in history_data and service in history_data[user_id]:
+            return history_data[user_id][service]
+    except Exception as e:
+        print("Error getting history:", e)
+
     return []
 
-# POP USER HISTORY FOR SERVICE
+# POP USER HISTORY FOR SERVICE AND USER_ID
 async def pop_history(service, user_id):
     with open("history.json", "r") as f:
         history_data = json.load(f)
@@ -45,6 +53,17 @@ async def pop_user_history(user_id):
             json.dump(history_data, f, indent=4)
         return f"CONFIG: Popped history for {user_id}."
     return f"CONFIG: No history found for {user_id}."
+
+# POP SERVICE HISTORY
+async def pop_service_history(service):
+    with open("history.json", "r") as f:
+        history_data = json.load(f)
+    for user_id in history_data:
+        if service in history_data[user_id]:
+            history_data[user_id].pop(service)
+    with open("history.json", "w") as f:
+        json.dump(history_data, f, indent=4)
+    return f"CONFIG: Popped history for {service}."
 
 # SERVICE COUNTER
 async def service_counter(service: str, amount: int):
@@ -215,6 +234,23 @@ async def set_user_num_uses(service, user_id, num_uses):
 
     return f"CONFIG: Set num uses for {user_id} for {service} to {num_uses}."
 
+# PURGE SERVICE COOLDOWN
+async def purge_service_cooldown(service: str):
+    # Load the existing cooldown data from the file
+    with open("cooldown.json", "r") as f:
+        cooldown_data = json.load(f)
+
+    # Check each user for the service and remove the cooldown
+    for user_id in cooldown_data:
+        if service in cooldown_data[user_id]:
+            del cooldown_data[user_id][service]
+
+    # Write the updated cooldown data back to the file
+    with open("cooldown.json", "w") as f:
+        json.dump(cooldown_data, f, indent=4)
+
+    return f"CONFIG: Purged cooldown for {service}."
+
 
 async def get_service_info(service: str):
     with open("config.json", "r") as f:
@@ -227,12 +263,16 @@ async def get_service_info(service: str):
 
 async def get_domains(service: str):
     """Get the list of domains for a service."""
-    with open("domains.json", "r") as f:
-        domains = json.load(f)
-    for provider in domains["services"]:
-        if provider["name"] == service:
-            return provider["domains"]
-    return "CONFIG: Invalid service."
+    try:
+        with open("domains.json", "r") as f:
+            domains = json.load(f)
+        for provider in domains["services"]:
+            if provider["name"] == service:
+                return provider["domains"]
+        return []
+    except Exception as e:
+        print("Error getting domains:", e)
+        return []
 
 
 async def get_all_domains():
@@ -248,12 +288,16 @@ async def get_all_domains():
 
 async def get_premium_domains(service: str):
     """Get the list of premium domains."""
-    with open("domains.json", "r") as f:
-        domains = json.load(f)
-    for provider in domains["services"]:
-        if provider["name"] == service:
-            return provider["premium_domains"]
-    return "CONFIG: Invalid service."
+    try:
+        with open("domains.json", "r") as f:
+            domains = json.load(f)
+        for provider in domains["services"]:
+            if provider["name"] == service:
+                return provider["premium_domains"]
+        return "CONFIG: Invalid service."
+    except Exception as e:
+        print("Error getting premium domains:", e)
+        return "CONFIG: Error getting premium domains."
 
 
 async def get_all_premium_domains():

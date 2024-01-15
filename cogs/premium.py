@@ -51,8 +51,9 @@ class Premium(commands.Cog):
                 f"Error: {response}.", ephemeral=True
             )
 
+        domains = await config.get_premium_domains(service)
         # Check if there are any domains for the service.
-        if len(await config.get_premium_domains(service)) == 0:
+        if len(domains) == 0:
             await log(
                 f"User: {interaction.user.id}\nThere are no domains for {service}."
             )
@@ -61,7 +62,7 @@ class Premium(commands.Cog):
             )
 
         # Grab a random domain from the list of domains for the service.
-        domain = random.choice(await config.get_premium_domains(service))
+        domain = random.choice(domains)
 
         # Check if the domain has been accessed before by grabbing the users history
         # and checking if the domain is in it. If it is, we'll grab a new domain.
@@ -70,7 +71,7 @@ class Premium(commands.Cog):
         while domain in await config.get_history(
             service + "_premium", str(interaction.user.id)
         ):
-            if len(await config.get_premium_domains(service)) == len(
+            if len(domains) == len(
                 await config.get_history(service + "_premium", str(interaction.user.id))
             ):
                 await interaction.response.send_message(
@@ -80,7 +81,7 @@ class Premium(commands.Cog):
                 return await log(
                     f"User: {interaction.user.id}\nThere are no more domains premium for {service}."
                 )
-            domain = random.choice(await config.get_premium_domains(service))
+            domain = random.choice(domains)
 
         # Send the message to the user saying the service it was from and the domain.
         await interaction.response.send_message(
@@ -128,6 +129,11 @@ class Premium(commands.Cog):
         self, interaction: discord.Interaction, service: str
     ) -> None:
         """Get your history of domains you've used."""
+
+        if service not in await config.get_services():
+            return await interaction.response.send_message(
+                f"Error: {service} is not a valid service.", ephemeral=True
+            )
 
         history = await config.get_history(service + "_premium", str(interaction.user.id))
         if len(history) == 0:

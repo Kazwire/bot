@@ -119,10 +119,29 @@ class Admin(commands.Cog):
         if await config.get_permission_status(service, interaction.user.id):
             domains = await config.get_domains(service)
             domains = ", ".join(domains)
-            await interaction.response.send_message(
-                f"Domains for {service}:\n```{domains}```",
-                ephemeral=True,
-            )
+
+            message = f"Domains for {service}:\n```{domains}```"
+            if len(message) > 2000:
+                # Save the message to a file.
+                filename = f"{random.randint(0, 100000)}.txt"
+
+                # Write the message to the file.
+                with open(filename, "w") as f:
+                    f.write(message)
+
+                # Send the file to the user.
+                await interaction.response.send_message(
+                    file=discord.File(filename),
+                    ephemeral=True,
+                )
+
+                # Remove the file.
+                os.remove(filename)
+            else:
+                await interaction.response.send_message(
+                    f"Domains for {service}:\n```{domains}```",
+                    ephemeral=True,
+                )
         else:
             await interaction.response.send_message(
                 "You do not have permission to use this command.", ephemeral=True
@@ -287,6 +306,34 @@ class Admin(commands.Cog):
 
     @set_user_cooldown.autocomplete(name="service")
     async def set_user_cooldown_service_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> typing.List[app_commands.Choice[str]]:
+        data = []
+        for service in await config.get_services():
+            data.append(app_commands.Choice(name=service, value=service))
+        return data
+
+    @admin.command(
+        name="purge_service_cooldown",
+        description="Purge the cooldowns for a service.",
+    )
+    async def purge_service_cooldown(
+        self, interaction: discord.Interaction, service: str
+    ) -> None:
+        """Set the cooldown for a service."""
+        if await config.get_permission_status(service, interaction.user.id):
+            response = await config.purge_service_cooldown(service)
+            await interaction.response.send_message(
+                f"Purged cooldown for {service}. Output: ```{response}```",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "You do not have permission to use this command.", ephemeral=True
+            )
+
+    @purge_service_cooldown.autocomplete(name="service")
+    async def purge_service_cooldown_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> typing.List[app_commands.Choice[str]]:
         data = []
@@ -496,6 +543,35 @@ class Admin(commands.Cog):
             await interaction.response.send_message(
                 "You don't have permission to do that!", ephemeral=True
             )
+    
+    @get_user_history.autocomplete(name="service")
+    async def clear_service_history_service_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> typing.List[app_commands.Choice[str]]:
+        data = []
+        for service in await config.get_services():
+            data.append(app_commands.Choice(name=service, value=service))
+        return data
+    
+    @admin.command(
+        name="clear_service_history",
+        description="Clear the history of a service.",
+    )
+    async def clear_service_history(
+        self, interaction: discord.Interaction, service: str
+    ):
+        """Clear the history of a service."""
+        if await config.get_permission_status(service, interaction.user.id):
+            data = await config.pop_service_history(service)
+            await interaction.response.send_message(
+                f"History for {service} has been cleared.\n\nOutput: ```{data}```",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "You don't have permission to do that!", ephemeral=True
+            )
+    
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Admin(bot), guild=bot.get_guild(int(os.getenv("GUILD_ID"))))
